@@ -31,16 +31,20 @@ const KathaAI = () => {
       const isMarathi = language === 'mr';
       
       const storyText = isMarathi 
-        ? `${prompt} विषयीची ही एक सुंदर बोधकथा आहे. एका सुंदर गावात सर्व लोक आनंदाने राहत होते. एके दिवशी तेथे एक मोठी समस्या निर्माण झाली. सर्वांनी एकत्र येऊन हुशारीने या समस्येवर मार्ग काढण्याचे ठरवले. प्रत्येकाने आपापले योगदान दिले आणि शेवटी सर्वांच्या मदतीने संकटाचे निवारण झाले.`
-        : `${prompt} के बारे में यह एक प्रेरणादायक कहानी है। एक सुंदर गांव में सभी लोग खुशी-खुशी रहते थे। एक दिन वहां एक बड़ी समस्या खड़ी हो गई। सभी ने मिलकर समझदारी से इस समस्या का समाधान निकालने का फैसला किया।`;
+        ? `${prompt} विषयीची ही एक अतिशय बोधप्रद कथा आहे. एका सुंदर गावात सर्व लोक आनंदाने एकत्र राहत होते. एके दिवशी तेथे एक मोठी अडचण निर्माण झाली. सर्वांनी एकत्र येऊन विचारपूर्वक या समस्येवर तोडगा काढण्याचे ठरवले. प्रत्येकाने स्वतःचे योगदान दिले आणि शेवटी सर्वांच्या सहकार्याने संकटाचे निवारण झाले.`
+        : `एक बार एक शिष्य ने अपने गुरु से पूछा, "गुरुदेव, सफलता का असली रहस्य क्या है?" गुरुजी मुस्कुराए और शिष्य को अगले दिन नदी किनारे मिलने के लिए कहा। जब वे पहुंचे, तो गुरुजी ने शिष्य को पानी में उतरने को कहा। जैसे ही पानी गर्दन तक आया, गुरुजी ने उसे पानी में डुबो दिया। बाहर निकलने पर गुरुजी ने पूछा, "पानी के अंदर तुम्हें सबसे ज्यादा किस चीज़ की जरूरत थी?" शिष्य ने कहा, "हवा की।" गुरुजी बोले, "बस, यही सफलता का रहस्य है।"`;
 
-      const moralText = isMarathi ? "ऐक्य हेच मोठे बळ आहे." : "एकता ही सबसे बड़ी शक्ति है।";
+      const moralText = isMarathi ? "ऐक्य आणि सहकार्य हेच यशाचे खरे बळ आहे." : "सफलता पाने के लिए तीव्र इच्छा और समर्पण आवश्यक है।";
+
+      const cleanPrompt = encodeURIComponent(prompt);
+      const randomSeed = Math.floor(Math.random() * 9999);
+      const hdImageUrl = `https://image.pollinations.ai/prompt/3d%20pixar%20disney%20style%20illustration%20of%20${cleanPrompt}%20vibrant%20hd?width=1024&height=600&seed=${randomSeed}&nologo=true`;
 
       setStory({
         title: prompt.length > 25 ? prompt.substring(0, 25) + '...' : prompt,
         text: storyText,
         moral: moralText,
-        imageUrl: `https://image.pollinations.ai/prompt/3d%20pixar%20style%20illustration%20of%20${encodeURIComponent(prompt)}?width=800&height=450&nologo=true`
+        imageUrl: hdImageUrl
       });
       setIsGenerating(false);
     }, 1200);
@@ -61,12 +65,26 @@ const KathaAI = () => {
     }
   };
 
-  // Canvas Based Multi-Page Image Card Downloader
+  // MP3 ऑडिओ डाउनलोड
+  const handleDownloadAudio = () => {
+    if (!story) return;
+    const langCode = language === 'mr' ? 'mr' : 'hi';
+    const cleanText = encodeURIComponent(story.text.substring(0, 200));
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${cleanText}&tl=${langCode}&client=tw-ob`;
+
+    const a = document.createElement('a');
+    a.href = audioUrl;
+    a.target = '_blank';
+    a.download = `${story.title}_Audio.mp3`;
+    a.click();
+  };
+
+  // High Quality Multi-Page Canvas Image Downloader
   const handleDownloadCard = () => {
     if (!story) return;
 
     const words = story.text.split(' ');
-    const wordsPerPage = 50;
+    const wordsPerPage = 40;
     const pagesCount = Math.ceil(words.length / wordsPerPage);
 
     const img = new Image();
@@ -74,23 +92,33 @@ const KathaAI = () => {
     img.src = story.imageUrl;
 
     img.onload = () => {
-      for (let p = 0; p < pagesCount; p++) {
+      const downloadPage = (p) => {
+        if (p >= pagesCount) return;
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 800;
-        canvas.height = 950;
+        
+        // HD Resolution Scaling (2x)
+        const scale = 2;
+        canvas.width = 800 * scale;
+        canvas.height = 950 * scale;
+        ctx.scale(scale, scale);
 
+        // Canvas Background
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, 800, 950);
 
+        // Header Image
         ctx.drawImage(img, 0, 0, 800, 400);
 
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        // Title Overlay Banner
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
         ctx.fillRect(0, 330, 800, 70);
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 26px Arial";
+        ctx.font = "bold 24px Arial";
         ctx.fillText(`${story.title} (Page ${p + 1}/${pagesCount})`, 30, 375);
 
+        // Wrap Words
         const pageWords = words.slice(p * wordsPerPage, (p + 1) * wordsPerPage);
         let lines = [];
         let currentLine = '';
@@ -108,35 +136,43 @@ const KathaAI = () => {
         }
         lines.push(currentLine);
 
+        // Draw Story Text
         ctx.fillStyle = "#1f2937";
-        let startY = 450;
+        let startY = 440;
         lines.forEach((lineText) => {
           ctx.fillText(lineText.trim(), 40, startY);
           startY += 38;
         });
 
+        // Draw Moral on Last Page
         if (p === pagesCount - 1) {
           startY = Math.max(startY + 20, 820);
           ctx.fillStyle = "#eef2ff";
-          ctx.fillRect(30, startY, 740, 70);
+          ctx.fillRect(30, startY, 740, 80);
           ctx.fillStyle = "#4f46e5";
           ctx.font = "bold 22px Arial";
           const moralLabel = language === 'mr' ? 'तात्पर्य: ' : 'सीख: ';
-          ctx.fillText(moralLabel + story.moral, 50, startY + 42);
+          ctx.fillText(moralLabel + story.moral, 50, startY + 48);
         }
 
+        // Trigger Download
         const link = document.createElement('a');
         link.download = `${story.title}_Page_${p + 1}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.href = canvas.toDataURL('image/png', 1.0);
         link.click();
-      }
+
+        // Download next page after 500ms delay to prevent browser block
+        setTimeout(() => downloadPage(p + 1), 500);
+      };
+
+      downloadPage(0);
     };
   };
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', backgroundColor: '#f9fafb', minHeight: '100vh', paddingBottom: '40px' }}>
       
-      {/* Header Navigation */}
+      {/* Header Navigation for AdSense */}
       <nav style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
         <h2 style={{ color: '#4f46e5', margin: 0, cursor: 'pointer' }} onClick={() => setCurrentPage('home')}>KathaAI</h2>
         <div style={{ display: 'flex', gap: '15px', marginTop: '5px' }}>
@@ -149,13 +185,11 @@ const KathaAI = () => {
       </nav>
 
       <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-        
-        {/* HOME PAGE */}
         {currentPage === 'home' && (
           <>
             <header style={{ textAlign: 'center', marginBottom: '30px', marginTop: '20px' }}>
               <h1 style={{ color: '#4f46e5' }}>KathaAI - AI स्टोरी जनरेटर</h1>
-              <p style={{ color: '#6b7280' }}>मराठी आणि हिंदी भाषांमध्ये AI च्या साहाय्याने कथा आणि चित्रे तयार करा!</p>
+              <p style={{ color: '#6b7280' }}>मराठी आणि हिंदी भाषांमध्ये AI च्या साहाय्याने कथा, HD चित्रे आणि ऑडिओ तयार करा!</p>
             </header>
 
             <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
@@ -198,7 +232,7 @@ const KathaAI = () => {
             {story && (
               <div style={{ marginTop: '30px', backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                 <h2>{story.title}</h2>
-                <div style={{ position: 'relative', width: '100%', height: '300px', borderRadius: '8px', overflow: 'hidden', marginBottom: '15px' }}>
+                <div style={{ position: 'relative', width: '100%', height: '350px', borderRadius: '8px', overflow: 'hidden', marginBottom: '15px' }}>
                   <img src={story.imageUrl} alt="Story Scene" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
                 <p style={{ fontSize: '18px', lineHeight: '1.6' }}>{story.text}</p>
@@ -206,14 +240,17 @@ const KathaAI = () => {
                   <strong>{language === 'mr' ? 'तात्पर्य:' : 'सीख:'}</strong> {story.moral}
                 </div>
 
-                {/* ACTION BUTTONS (PLAY AUDIO & DOWNLOAD CARD) */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button onClick={handlePlayAudio} style={{ flex: 1, padding: '12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    {isPlaying ? 'थांबवा' : '🎬 Play Audio'}
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+                  <button onClick={handlePlayAudio} style={{ flex: 1, minWidth: '150px', padding: '12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    {isPlaying ? 'थांबवा' : '🔊 ऐका (Play)'}
                   </button>
 
-                  <button onClick={handleDownloadCard} style={{ flex: 1, padding: '12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    🖼️ Download Story Card
+                  <button onClick={handleDownloadAudio} style={{ flex: 1, minWidth: '150px', padding: '12px', backgroundColor: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    🎵 Download Audio (.mp3)
+                  </button>
+
+                  <button onClick={handleDownloadCard} style={{ flex: 1, minWidth: '150px', padding: '12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    🖼️ Download HD Cards
                   </button>
                 </div>
               </div>
@@ -221,51 +258,38 @@ const KathaAI = () => {
           </>
         )}
 
-        {/* ABOUT US PAGE */}
+        {/* Legal Pages for Google AdSense Approval */}
         {currentPage === 'about' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginTop: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', marginTop: '20px' }}>
             <h2>About KathaAI</h2>
-            <p style={{ lineHeight: '1.6', color: '#4b5563' }}>
-              Welcome to <strong>KathaAI</strong>, your ultimate platform for generating unique Marathi and Hindi stories using Artificial Intelligence.
-            </p>
+            <p>Welcome to KathaAI, your ultimate platform for generating unique stories and visual cards using AI.</p>
           </div>
         )}
 
-        {/* PRIVACY POLICY PAGE */}
         {currentPage === 'privacy' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginTop: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', marginTop: '20px' }}>
             <h2>Privacy Policy</h2>
-            <p style={{ lineHeight: '1.6', color: '#4b5563' }}>
-              At KathaAI, accessible from our web platform, one of our main priorities is the privacy of our visitors.
-            </p>
+            <p>At KathaAI, we value visitor privacy and ensure safe content generation for everyone.</p>
           </div>
         )}
 
-        {/* TERMS PAGE */}
         {currentPage === 'terms' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginTop: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', marginTop: '20px' }}>
             <h2>Terms and Conditions</h2>
-            <p style={{ lineHeight: '1.6', color: '#4b5563' }}>
-              By accessing KathaAI, you agree to generate respectful and educational content.
-            </p>
+            <p>Content generated on KathaAI is free to use for personal and educational purposes.</p>
           </div>
         )}
 
-        {/* CONTACT PAGE */}
         {currentPage === 'contact' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginTop: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '30px', borderRadius: '12px', marginTop: '20px' }}>
             <h2>Contact Us</h2>
-            <p style={{ lineHeight: '1.6', color: '#4b5563' }}>
-              If you have any questions, feedback, or suggestions:
-            </p>
-            <p style={{ fontWeight: 'bold', color: '#4f46e5' }}>Email: support@kathaai.com</p>
+            <p>Email: support@kathaai.com</p>
           </div>
         )}
-
       </div>
     </div>
   );
 };
 
 export default KathaAI;
-  
+      
