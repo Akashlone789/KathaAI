@@ -7,10 +7,9 @@ const KathaAI = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [story, setStory] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   const [speechSynth, setSpeechSynth] = useState(null);
 
-  const canvasRef = useRef(null);
+  const cardRef = useRef(null);
 
   useEffect(() => {
     if ('speechSynthesis' in window) {
@@ -57,46 +56,69 @@ const KathaAI = () => {
     }
   };
 
-  // HTML5 MediaRecorder द्वारे Free मध्ये Video File Download करणे
-  const handleDownloadVideo = () => {
+  // Story Image Card Downloader Logic
+  const handleDownloadCard = () => {
     if (!story) return;
-    setIsRecording(true);
-
-    const canvas = canvasRef.current;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 800;
     const ctx = canvas.getContext('2d');
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = story.videoUrl;
 
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.fillRect(10, canvas.height - 70, canvas.width - 20, 60);
+      // Card Background
       ctx.fillStyle = "#ffffff";
-      ctx.font = "16px Arial";
-      ctx.fillText(story.title, 20, canvas.height - 35);
+      ctx.fillRect(0, 0, 800, 800);
 
-      const stream = canvas.captureStream(25);
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      const chunks = [];
+      // Story Scene Image
+      ctx.drawImage(img, 0, 0, 800, 450);
 
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${story.title}_KathaAI.webm`;
-        a.click();
-        setIsRecording(false);
-      };
+      // Overlay Gradient
+      ctx.fillStyle = "rgba(0,0,0,0.4)";
+      ctx.fillRect(0, 370, 800, 80);
 
-      mediaRecorder.start();
-      handlePlayVideoStory();
+      // Title Text
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 28px Arial";
+      ctx.fillText(story.title, 30, 420);
 
-      setTimeout(() => {
-        mediaRecorder.stop();
-      }, 8000); // 8 सेकंदाचा व्हिडिओ रेकॉर्ड होऊन डाऊनलोड होईल
+      // Story Text Content
+      ctx.fillStyle = "#1f2937";
+      ctx.font = "20px Arial";
+      
+      const words = story.text.split(' ');
+      let line = '';
+      let y = 500;
+
+      for (let n = 0; n < words.length; n++) {
+        let testLine = line + words[n] + ' ';
+        let metrics = ctx.measureText(testLine);
+        if (metrics.width > 740 && n > 0) {
+          ctx.fillText(line, 30, y);
+          line = words[n] + ' ';
+          y += 35;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line, 30, y);
+
+      // Moral Banner
+      ctx.fillStyle = "#eef2ff";
+      ctx.fillRect(30, 700, 740, 60);
+      ctx.fillStyle = "#4f46e5";
+      ctx.font = "bold 20px Arial";
+      ctx.fillText("तात्पर्य: " + story.moral, 50, 738);
+
+      // Trigger Download
+      const link = document.createElement('a');
+      link.download = `${story.title}_StoryCard.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     };
   };
 
@@ -145,7 +167,7 @@ const KathaAI = () => {
       </div>
 
       {story && (
-        <div style={{ marginTop: '30px', backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <div ref={cardRef} style={{ marginTop: '30px', backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2>{story.title}</h2>
           
           <div style={{ position: 'relative', width: '100%', height: '300px', borderRadius: '8px', overflow: 'hidden', marginBottom: '15px', backgroundColor: '#000' }}>
@@ -156,9 +178,6 @@ const KathaAI = () => {
             />
           </div>
 
-          {/* Canvas Element for Free Video Download */}
-          <canvas ref={canvasRef} width="800" height="450" style={{ display: 'none' }}></canvas>
-
           <p style={{ fontSize: '18px', lineHeight: '1.6' }}>{story.text}</p>
           
           <div style={{ backgroundColor: '#eef2ff', padding: '10px', borderRadius: '8px', marginTop: '15px' }}>
@@ -167,11 +186,11 @@ const KathaAI = () => {
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
             <button onClick={handlePlayVideoStory} style={{ flex: 1, padding: '12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {isPlaying ? 'थांबवा' : '🎬 Play Video'}
+              {isPlaying ? 'थांबवा' : '🎬 Play Video (Screen Record)'}
             </button>
 
-            <button onClick={handleDownloadVideo} disabled={isRecording} style={{ flex: 1, padding: '12px', backgroundColor: '#e11d48', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {isRecording ? '📹 रेकॉर्डिंग चालू आहे...' : '📥 Download Video File'}
+            <button onClick={handleDownloadCard} style={{ flex: 1, padding: '12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              🖼️ Download Story Card
             </button>
           </div>
         </div>
