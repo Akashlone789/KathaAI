@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const KathaAI = () => {
   const [prompt, setPrompt] = useState('');
@@ -7,7 +7,10 @@ const KathaAI = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [story, setStory] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [speechSynth, setSpeechSynth] = useState(null);
+
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     if ('speechSynthesis' in window) {
@@ -27,16 +30,19 @@ const KathaAI = () => {
     setIsGenerating(true);
     
     setTimeout(() => {
+      const videoImageUrl = `https://picsum.photos/seed/${encodeURIComponent(prompt)}/800/450`;
+      
       setStory({
         title: prompt.length > 20 ? prompt.substring(0, 20) + '...' : prompt,
         text: `एकदा एका सुंदर जंगलात, ${prompt} विषयीची ही गोष्ट घडली. जंगलातील सर्व प्राणी एकत्र आले आणि त्यांनी एका मोठ्या समस्येवर उपाय शोधण्याचे ठरवले. या गोष्टीवरून आपल्याला शिकायला मिळते की संकटाच्या वेळी सर्वांनी एकत्र येऊन काम केले पाहिजे.`,
-        moral: "ऐक्य हेच मोठे बळ आहे."
+        moral: "ऐक्य हेच मोठे बळ आहे.",
+        videoUrl: videoImageUrl
       });
       setIsGenerating(false);
     }, 1500);
   };
 
-  const handleSpeak = () => {
+  const handlePlayVideoStory = () => {
     if (!speechSynth || !story) return;
 
     if (isPlaying) {
@@ -51,11 +57,54 @@ const KathaAI = () => {
     }
   };
 
+  // HTML5 MediaRecorder द्वारे Free मध्ये Video File Download करणे
+  const handleDownloadVideo = () => {
+    if (!story) return;
+    setIsRecording(true);
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = story.videoUrl;
+
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(10, canvas.height - 70, canvas.width - 20, 60);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "16px Arial";
+      ctx.fillText(story.title, 20, canvas.height - 35);
+
+      const stream = canvas.captureStream(25);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const chunks = [];
+
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${story.title}_KathaAI.webm`;
+        a.click();
+        setIsRecording(false);
+      };
+
+      mediaRecorder.start();
+      handlePlayVideoStory();
+
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, 8000); // 8 सेकंदाचा व्हिडिओ रेकॉर्ड होऊन डाऊनलोड होईल
+    };
+  };
+
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h1 style={{ color: '#4f46e5' }}>KathaAI (कथा AI)</h1>
-        <p style={{ color: '#6b7280' }}>AI च्या साहाय्याने तयार करा सुंदर गोष्टी आणि ऑडिओ!</p>
+        <h1 style={{ color: '#4f46e5' }}>KathaAI (कथा AI Video App)</h1>
+        <p style={{ color: '#6b7280' }}>AI च्या साहाय्याने तयार करा सुंदर कथा आणि व्हिडिओ!</p>
       </header>
 
       <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
@@ -98,13 +147,33 @@ const KathaAI = () => {
       {story && (
         <div style={{ marginTop: '30px', backgroundColor: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2>{story.title}</h2>
+          
+          <div style={{ position: 'relative', width: '100%', height: '300px', borderRadius: '8px', overflow: 'hidden', marginBottom: '15px', backgroundColor: '#000' }}>
+            <img 
+              src={story.videoUrl} 
+              alt="Story Scene" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            />
+          </div>
+
+          {/* Canvas Element for Free Video Download */}
+          <canvas ref={canvasRef} width="800" height="450" style={{ display: 'none' }}></canvas>
+
           <p style={{ fontSize: '18px', lineHeight: '1.6' }}>{story.text}</p>
+          
           <div style={{ backgroundColor: '#eef2ff', padding: '10px', borderRadius: '8px', marginTop: '15px' }}>
             <strong>तात्पर्य:</strong> {story.moral}
           </div>
-          <button onClick={handleSpeak} style={{ marginTop: '15px', padding: '10px 15px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-            {isPlaying ? 'थांबवा' : 'गोष्ट ऐका (Audio)'}
-          </button>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+            <button onClick={handlePlayVideoStory} style={{ flex: 1, padding: '12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {isPlaying ? 'थांबवा' : '🎬 Play Video'}
+            </button>
+
+            <button onClick={handleDownloadVideo} disabled={isRecording} style={{ flex: 1, padding: '12px', backgroundColor: '#e11d48', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {isRecording ? '📹 रेकॉर्डिंग चालू आहे...' : '📥 Download Video File'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -112,4 +181,3 @@ const KathaAI = () => {
 };
 
 export default KathaAI;
-    
